@@ -2,6 +2,7 @@ package yeelight
 
 import (
 	"encoding/json"
+	"errors"
 	"net"
 )
 
@@ -41,6 +42,10 @@ func (m *Music) executeCommand(c partialCommand) error {
 	}
 
 	return nil
+}
+
+func (m *Music) executeQuery(c partialCommand) (string, error) {
+	return "", errors.New("not implemented")
 }
 
 func (m *Music) Stop() error {

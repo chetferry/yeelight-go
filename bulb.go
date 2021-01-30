@@ -73,7 +73,7 @@ func NewBulb(ip string) *Bulb {
 	return bulb
 }
 
-func (b *Bulb) executeCommand(c partialCommand) error {
+func (b *Bulb) _executeCommand(c partialCommand) (Response, error) {
 	respChan := make(chan Response)
 
 	// preparing request ID to be able to monitor and wait for response
@@ -81,7 +81,7 @@ func (b *Bulb) executeCommand(c partialCommand) error {
 	id, err := b.findFirstFreeIntKey()
 	if err != nil {
 		b.resultsMtx.Unlock()
-		return err
+		return nil, err
 	}
 	b.results[id] = respChan
 	b.resultsMtx.Unlock()
@@ -94,19 +94,43 @@ func (b *Bulb) executeCommand(c partialCommand) error {
 	realCommand := newCompleteCommand(c, id)
 	message, err := json.Marshal(realCommand)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	log.Printf("[%s] request: %s\n", b.Ip, message)
 	message = append(message, CR, LF)
 
 	_, err = b.conn.Write(message)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// waiting for response on that request
 	resp := <-respChan
+	return resp, nil
+}
+
+func (b *Bulb) executeCommand(c partialCommand) error {
+	resp, err := b._executeCommand(c)
+	if err != nil {
+		return err
+	}
 	return resp.ok()
+}
+
+// executeQuery returns the content of response
+func (b *Bulb) executeQuery(c partialCommand) (string, error) {
+	resp, err := b._executeCommand(c)
+	if err != nil {
+		return "", err
+	}
+
+	content := resp.(*OKResponse).Result
+	if len(content) != 1 {
+		// expect one and only one element in result array
+		return "", errors.New("invalid response")
+	}
+
+	return content[0], resp.ok()
 }
 
 func openSocket(host string, min, max int) (net.Listener, int, error) {

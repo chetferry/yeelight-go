@@ -90,4 +90,5 @@ type partialCommand struct {
 
 type commander interface {
 	executeCommand(partialCommand) error
+	executeQuery(partialCommand) (string, error)
 }
