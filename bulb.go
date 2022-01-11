@@ -171,7 +171,7 @@ func keysExists(m map[string]interface{}, keys ...string) bool {
 }
 
 // responseProcessor is run internally by Connect() function.
-// Tt's responsible for monitoring command responses and notifications
+// it's responsible for monitoring command responses and notifications
 func (b *Bulb) responseProcessor() {
 	var buff = make([]byte, 512)
 	var resp map[string]interface{}
