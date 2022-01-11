@@ -88,7 +88,9 @@ func (b *Bulb) _executeCommand(c partialCommand) (Response, error) {
 
 	defer func(ch chan Response, id int) {
 		close(ch)
+		b.resultsMtx.Lock()
 		delete(b.results, id)
+		b.resultsMtx.Unlock()
 	}(respChan, id)
 
 	realCommand := newCompleteCommand(c, id)
@@ -96,7 +98,7 @@ func (b *Bulb) _executeCommand(c partialCommand) (Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("[%s] request: %s\n", b.Ip, message)
+	// log.Printf("[%s] request: %s\n", b.Ip, message)
 	message = append(message, CR, LF)
 
 	_, err = b.conn.Write(message)
