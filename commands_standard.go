@@ -16,7 +16,21 @@ type standardCommands struct {
 // Not implemented! TODO: TODO
 func (c *standardCommands) Prop(props ...Property) (map[string]interface{}, error) {
 	var data = make(map[string]interface{})
-	return data, errors.New("not implemented")
+
+	// Hacky way for now
+	for _, v := range props {
+		cmdResult, err := c.commander.executeQuery(
+			partialCommand{"get_prop", params{v}},
+		)
+
+		if err != nil {
+			return data, err
+		}
+
+		data[string(v)] = cmdResult
+	}
+
+	return data, nil
 }
 
 // cronAdd sets timer which invokes given CronType operation (power off is only supported)

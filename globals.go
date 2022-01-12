@@ -98,6 +98,7 @@ type partialCommand struct {
 
 type commander interface {
 	executeCommand(partialCommand) error
+	executeQuery(partialCommand) (string, error)
 }
 
 func timeToMs(duration time.Duration) int {

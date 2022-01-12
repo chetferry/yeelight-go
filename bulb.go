@@ -73,7 +73,7 @@ func NewBulb(ip string) *Bulb {
 	return bulb
 }
 
-func (b *Bulb) executeCommand(c partialCommand) error {
+func (b *Bulb) _executeCommand(c partialCommand) (Response, error) {
 	respChan := make(chan Response)
 
 	// preparing request ID to be able to monitor and wait for response
@@ -81,7 +81,7 @@ func (b *Bulb) executeCommand(c partialCommand) error {
 	id, err := b.findFirstFreeIntKey()
 	if err != nil {
 		b.resultsMtx.Unlock()
-		return err
+		return nil, err
 	}
 	b.results[id] = respChan
 	b.resultsMtx.Unlock()
@@ -96,20 +96,66 @@ func (b *Bulb) executeCommand(c partialCommand) error {
 	realCommand := newCompleteCommand(c, id)
 	message, err := json.Marshal(realCommand)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// log.Printf("[%s] request: %s\n", b.Ip, message)
 	message = append(message, CR, LF)
 
 	_, err = b.conn.Write(message)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// waiting for response on that request
 	resp := <-respChan
+	return resp, nil
+}
+
+func (b *Bulb) executeCommand(c partialCommand) error {
+	resp, err := b._executeCommand(c)
+	if err != nil {
+		return err
+	}
 	return resp.ok()
 }
+
+// executeQuery returns the content of response
+func (b *Bulb) executeQuery(c partialCommand) (string, error) {
+	resp, err := b._executeCommand(c)
+	if err != nil {
+		return "", err
+	}
+
+	content := resp.(*OKResponse).Result
+	if len(content) != 1 {
+		// expect one and only one element in result array
+		return "", errors.New("invalid response")
+	}
+
+	return content[0], resp.ok()
+}
+
+//func openSocket(host string, min, max int) (net.Listener, int, error) {
+//	if min > max {
+//		return nil, 0, errors.New("min value cannot be greather than max value")
+//	}
+//	if min < 0 || max > 65535 {
+//		return nil, 0, errors.New("port number must be in range 0 - 65535")
+//	}
+//
+//	for port := min; port <= max; port++ {
+//		var ip = "" // binding on all interfaces
+//		address := fmt.Sprintf("%s:%d", ip, port)
+//
+//		listener, err := net.Listen("tcp", address)
+//		if err != nil {
+//			continue
+//		}
+//		return listener, port, nil
+//	}
+//	return nil, 0, errors.New("no available free ports in given range")
+//
+//}
 
 // keysExists returns a bool when given map contains all of given key names
 func keysExists(m map[string]interface{}, keys ...string) bool {
@@ -127,7 +173,7 @@ func keysExists(m map[string]interface{}, keys ...string) bool {
 }
 
 // responseProcessor is run internally by Connect() function.
-// Tt's responsible for monitoring command responses and notifications
+// it's responsible for monitoring command responses and notifications
 func (b *Bulb) responseProcessor() {
 	var buff = make([]byte, 512)
 	var resp map[string]interface{}
